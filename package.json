@@ -17,5 +17,9 @@
   "bugs": {
     "url": "https://github.com/hannesgassert/podcast-gemeinderat-zuerich/issues"
   },
-  "homepage": "https://github.com/hannesgassert/podcast-gemeinderat-zuerich#readme"
+  "homepage": "https://github.com/hannesgassert/podcast-gemeinderat-zuerich#readme",
+  "dependencies": {
+    "rss": "^1.2.2",
+    "vm2": "^3.5.2"
+  }
 }
