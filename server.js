@@ -132,7 +132,7 @@ function getFeedXML(callback) {
 
 const requestHandler = (request, response) => {
     getFeedXML(function(r){
-        console.log(r);
+        response.setHeader('Content-Type', 'application/rss+xml');
         response.end(r);
     });
 };
