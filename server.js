@@ -54,10 +54,10 @@ function pubDate(date) {
     date = new Date();
   }
 
-  var pieces     = date.toString().split(' '),
+  var pieces = date.toString().split(' '),
       offsetTime = pieces[5].match(/[-+]\d{4}/),
-      offset     = (offsetTime) ? offsetTime : pieces[5],
-      parts      = [
+      offset = (offsetTime) ? offsetTime : pieces[5],
+      parts = [
         pieces[0] + ',',
         pieces[2],
         pieces[1],
@@ -108,14 +108,21 @@ function getFeedXML(callback) {
                 // Integer entries are the meetings, other ones are agenda items of those meetings
                 if (Number.isInteger(Number(entry[0]))) {
 
+                    var dateComponents = entry[1].match(/(\d+)\.(\d+)\.(\d{4})/),
+                        encodedTitle = encodeURIComponent(entry[1]);
+
                     feed.item({
                         title: entry[1],
                         description: '',
                         url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
-                        date: 'May 27, 2012', // any format that js Date can parse. // TODO
+                        guid: source + '#' + encodedTitle,
+                        date: dateComponents[3] +
+                            '/' + dateComponents[2] +
+                            '/' + dateComponents[1] +
+                            ' 23:00',
                         enclosure: {
                             url: 'http://audio.gemeinderat-zuerich.ch/audio/' +
-                                    encodeURIComponent(entry[1]) +
+                                    encodedTitle +
                                     '/meeting.mp3',
                             type:' audio/mpeg3'
                         }
