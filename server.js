@@ -82,7 +82,7 @@ function getFeedXML(callback) {
         error = new Error('Request Failed.\n' +
                           `Status Code: ${statusCode}`);
       } else if (!/^application\/javascript/.test(contentType)) {
-        error = new Error(`Expected application/json but received ${contentType}`);
+        error = new Error(`Expected application/javascript from source but received ${contentType}`);
       }
       if (error) {
         callback(null, error);
