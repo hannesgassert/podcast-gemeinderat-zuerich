@@ -82,11 +82,10 @@ function getFeedXML(callback) {
         error = new Error('Request Failed.\n' +
                           `Status Code: ${statusCode}`);
       } else if (!/^application\/javascript/.test(contentType)) {
-        error = new Error('Invalid content-type.\n' +
-                          `Expected application/json but received ${contentType}`);
+        error = new Error(`Expected application/json but received ${contentType}`);
       }
       if (error) {
-        console.error(error.message);
+        callback(null, error);
         res.resume();
         return;
       }
@@ -133,18 +132,23 @@ function getFeedXML(callback) {
             }
 
         } catch (e) {
-          console.error(e.message);
+          callback(null, e);
         }
       });
     }).on('error', (e) => {
-      console.error(e.message);
+      callback(null, e);
     });
 }
 
 app.use(express.static(__dirname + '/static'));
 
 app.get('/podcast-gemeinderat-zuerich.xml', function (req, res) {
-  getFeedXML(function(xml){
+  getFeedXML(function(xml, err){
+        if (err) {
+            console.error(err.stack)
+            res.status(500).end(err.message);
+            return;
+        }
         res.setHeader('Content-Type', 'application/rss+xml');
         res.end(xml);
     });
