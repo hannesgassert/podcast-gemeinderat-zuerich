@@ -2,10 +2,7 @@
   "name": "podcast-gemeinderat-zuerich",
   "version": "0.0.1",
   "description": "Creates a podcast RSS feed from audio.gemeinderat-zuerich.ch",
-  "main": "gr.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "server.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hannesgassert/podcast-gemeinderat-zuerich.git"
