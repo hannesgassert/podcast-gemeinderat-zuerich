@@ -1,5 +1,6 @@
 const {VM} = require('vm2'),
     http = require('http'),
+    express = require('express'),
     RSS = require('rss');
 
 const vm = new VM({
@@ -8,15 +9,16 @@ const vm = new VM({
 });
 
 const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js';
+const maxEntries = 10;
 
-var entriesToShow = 10;
+var app = express();
 
 var feed = new RSS({
     title: 'Audioprotokoll Gemeinderat Stadt Zürich',
     description: '',
-    //feed_url: 'http://example.com/rss.xml',
-    //site_url: 'http://example.com',
-    image_url: 'http://audio.gemeinderat-zuerich.ch/image/menutitle.png',
+    feed_url: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.xml',
+    site_url: 'http://audio.gemeinderat-zuerich.ch',
+    image_url: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.jpg',
     webMaster: 'Hannes Gassert',
     language: 'de',
     categories: ['Government & Organizations'],
@@ -34,7 +36,7 @@ var feed = new RSS({
       ]},
       {'itunes:image': {
         _attr: {
-          href: ''
+          href: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.jpg'
         }
       }},
       {'itunes:category': [
@@ -69,6 +71,8 @@ function pubDate(date) {
 
 
 function getFeedXML(callback) {
+    var entriesToShow = maxEntries;
+
     http.get(source, (res) => {
       const { statusCode } = res;
       const contentType = res.headers['content-type'];
@@ -130,17 +134,13 @@ function getFeedXML(callback) {
     });
 }
 
-const requestHandler = (request, response) => {
-    getFeedXML(function(r){
-        response.setHeader('Content-Type', 'application/rss+xml');
-        response.end(r);
+app.use(express.static(__dirname + '/static'));
+
+app.get('/podcast-gemeinderat-zuerich.xml', function (req, res) {
+  getFeedXML(function(xml){
+        res.setHeader('Content-Type', 'application/rss+xml');
+        res.end(xml);
     });
-};
-
-const server = http.createServer(requestHandler);
-
-server.listen(8080, (err) => {
-  if (err) {
-    return console.error(err.message);
-  }
 });
+
+app.listen(8080);
