@@ -7,8 +7,6 @@ const vm = new VM({
     sandbox: {tocLink: ''}
 });
 
-const port = 3000
-
 const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js';
 
 var entriesToShow = 10;
@@ -141,7 +139,7 @@ const requestHandler = (request, response) => {
 
 const server = http.createServer(requestHandler);
 
-server.listen(port, (err) => {
+server.listen(8080, (err) => {
   if (err) {
     return console.error(err.message);
   }
