@@ -3,11 +3,15 @@ const http = require('http'),
     _ = require('underscore'),
     express = require('express'),
     RSS = require('rss'),
-    {VM} = require('vm2');
+    {
+        VM
+    } = require('vm2');
 
 const vm = new VM({
     timeout: 1000,
-    sandbox: {tocLink: ''}
+    sandbox: {
+        tocLink: ''
+    }
 });
 
 const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
@@ -17,7 +21,10 @@ const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
     cacheTTL = 1500; //seconds
 
 var app = express(),
-    cache = {xml: '', updated: 0};
+    cache = {
+        xml: '',
+        updated: 0
+    };
 
 var feed = new RSS({
     title: 'Audioprotokoll Gemeinderat Stadt Zürich',
@@ -32,60 +39,74 @@ var feed = new RSS({
     pubDate: pubDate(),
     ttl: '180',
     custom_namespaces: {
-      'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'
+        'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'
     },
-    custom_elements: [
-      {'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'},
-      {'itunes:author': 'Gemeinderat Stadt Zürich'},
-      {'itunes:explicit': 'No'},
-      {'itunes:owner': [
-        {'itunes:name': 'Hannes Gassert'},
-        {'itunes:email': 'hannes@gassert.ch'}
-      ]},
-      {'itunes:image': {
-        _attr: {
-          href: 'http://' + serverName + basePath + '/cover.jpg'
+    custom_elements: [{
+            'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'
+        },
+        {
+            'itunes:author': 'Gemeinderat Stadt Zürich'
+        },
+        {
+            'itunes:explicit': 'No'
+        },
+        {
+            'itunes:owner': [{
+                    'itunes:name': 'Hannes Gassert'
+                },
+                {
+                    'itunes:email': 'hannes@gassert.ch'
+                }
+            ]
+        },
+        {
+            'itunes:image': {
+                _attr: {
+                    href: 'http://' + serverName + basePath + '/cover.jpg'
+                }
+            }
+        },
+        {
+            'itunes:category': [{
+                _attr: {
+                    text: 'Government & Organizations'
+                }
+            }]
         }
-      }},
-      {'itunes:category': [
-        {_attr: {
-          text: 'Government & Organizations'
-        }}
-      ]}
     ]
 });
 
 // Generate RSS Pubdate in Apple's format
 function pubDate(date) {
 
-  if (typeof date === 'undefined') {
-    date = new Date();
-  }
+    if (typeof date === 'undefined') {
+        date = new Date();
+    }
 
-  var pieces = date.toString().split(' '),
-      offsetTime = pieces[5].match(/[-+]\d{4}/),
-      offset = (offsetTime) ? offsetTime : pieces[5],
-      parts = [
-        pieces[0] + ',',
-        pieces[2],
-        pieces[1],
-        pieces[3],
-        pieces[4],
-        offset
-      ];
+    var pieces = date.toString().split(' '),
+        offsetTime = pieces[5].match(/[-+]\d{4}/),
+        offset = (offsetTime) ? offsetTime : pieces[5],
+        parts = [
+            pieces[0] + ',',
+            pieces[2],
+            pieces[1],
+            pieces[3],
+            pieces[4],
+            offset
+        ];
 
-  return parts.join(' ');
+    return parts.join(' ');
 }
 
 function getMP3Size(meetingNameEncoded, callback) {
 
     req = http.request({
-        method: 'HEAD',
-        host: 'audio.gemeinderat-zuerich.ch',
-        port: 80,
-        path: '/audio/' + meetingNameEncoded + '/meeting.mp3'
+            method: 'HEAD',
+            host: 'audio.gemeinderat-zuerich.ch',
+            port: 80,
+            path: '/audio/' + meetingNameEncoded + '/meeting.mp3'
         },
-        function(res) {
+        function (res) {
             if (res.headers['content-length']) {
                 return callback(res.headers['content-length']);
             }
@@ -104,76 +125,83 @@ function getFeedXML(callback) {
     }
 
     http.get(source, (res) => {
-      const { statusCode } = res;
-      const contentType = res.headers['content-type'];
+        const {
+            statusCode
+        } = res;
+        const contentType = res.headers['content-type'];
 
-      let error;
-      if (statusCode !== 200) {
-        error = new Error('Request Failed.\n' +
-                          `Status Code: ${statusCode}`);
-      } else if (!/^application\/javascript/.test(contentType)) {
-        error = new Error(`Expected application/javascript from source but received ${contentType}`);
-      }
-      if (error) {
-        callback(null, error);
-        res.resume();
-        return;
-      }
+        let error;
+        if (statusCode !== 200) {
+            error = new Error('Request Failed.\n' +
+                `Status Code: ${statusCode}`);
+        } else if (!/^application\/javascript/.test(contentType)) {
+            error = new Error(`Expected application/javascript from source but received ${contentType}`);
+        }
+        if (error) {
+            callback(null, error);
+            res.resume();
+            return;
+        }
 
-      res.setEncoding('utf8');
-      let rawData = '';
-      res.on('data', (chunk) => { rawData += chunk; });
-      res.on('end', () => {
-        try {
-            vm.run(rawData);
-            tocJS = _.filter(vm.run('tocTab'), function(item) {
-                // Integer entries are the meetings, other ones are agenda items of those meetings
-                return Number.isInteger(Number(item[0]));
-            });
+        res.setEncoding('utf8');
+        let rawData = '';
+        res.on('data', (chunk) => {
+            rawData += chunk;
+        });
+        res.on('end', () => {
+            try {
+                vm.run(rawData);
+                tocJS = _.filter(vm.run('tocTab'), function (item) {
+                    // Integer entries are the meetings, other ones are agenda items of those meetings
+                    return Number.isInteger(Number(item[0]));
+                });
 
-            tocJS = _.first(tocJS, maxEntries);
+                tocJS = _.first(tocJS, maxEntries);
 
-            _.each(tocJS, function(entry) {
+                _.each(tocJS, function (entry, i) {
                     var dateComponents = entry[1].match(/(\d+)\.(\d+)\.(\d{4})/),
                         encodedTitle = encodeURIComponent(entry[1]);
 
-                      getMP3Size(encodedTitle, function(mp3Size) {
+                    getMP3Size(encodedTitle, function (mp3Size) {
 
-                            feed.item({
-                                index: entry[0],
-                                title: entry[1],
-                                description: '',
-                                url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
-                                guid: crypto.createHash('md5').update(source + '#' + encodedTitle).digest('hex'),
-                                date: dateComponents[3] +
-                                    '/' + dateComponents[2] +
-                                    '/' + dateComponents[1] +
-                                    ' 23:00',
-                                enclosure: {
-                                    url: 'http://audio.gemeinderat-zuerich.ch/audio/' +
-                                            encodedTitle +
-                                            '/meeting.mp3',
-                                    type:' audio/mpeg3',
-                                    size: mp3Size
-                                }
-                            });
-
-                            if (feed.items.length === maxEntries) {
-                                // Hack: reorder, as the async fetching of sizes might have changed the ordering
-                                _.sortBy(feed.items, 'index');
-                                cache.xml = feed.xml();
-                                cache.updated = Date.now();
-                                callback(cache.xml);
+                        feed.item({
+                            index: i,
+                            title: entry[1],
+                            description: '',
+                            url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
+                            guid: crypto.createHash('md5').update(source + '#' + encodedTitle).digest('hex'),
+                            date: dateComponents[3] +
+                                '/' + dateComponents[2] +
+                                '/' + dateComponents[1] +
+                                ' 23:00',
+                            enclosure: {
+                                url: 'http://audio.gemeinderat-zuerich.ch/audio/' +
+                                    encodedTitle +
+                                    '/meeting.mp3',
+                                type: ' audio/mpeg3',
+                                size: mp3Size
                             }
                         });
+
+
+                        if (feed.items.length === maxEntries) {
+                            // Hack: reorder, as the async fetching of sizes might have changed the ordering
+                            // Luckily the title contains the meeting number and is thus sortable as follows:
+                            feed.items = _.sortBy(feed.items, 'title').reverse();
+
+                            cache.xml = feed.xml();
+                            cache.updated = Date.now();
+                            callback(cache.xml);
+                        }
+                    });
                 });
 
-        } catch (e) {
-          callback(null, e);
-        }
-      });
+            } catch (e) {
+                callback(null, e);
+            }
+        });
     }).on('error', (e) => {
-      callback(null, e);
+        callback(null, e);
     });
 }
 
@@ -181,7 +209,7 @@ app.use(basePath, express.static(__dirname + '/static'));
 
 app.get(basePath + '/feed.xml', function (req, res) {
 
-  getFeedXML(function(xml, err){
+    getFeedXML(function (xml, err) {
         if (err) {
             console.error(err.stack);
             res.status(500).end(err.message);
