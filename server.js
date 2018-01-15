@@ -13,7 +13,7 @@ const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
     basePath = '/podcast-gemeinderat-zuerich',
     serverName = 'feeds.gassert.ch',
     maxEntries = 10,
-    cacheTTL = 60; //seconds
+    cacheTTL = 1500; //seconds
 
 var app = express(),
     cache = {xml: '', updated: 0};
