@@ -9,13 +9,14 @@ const vm = new VM({
     sandbox: {tocLink: ''}
 });
 
-
 const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
     basePath = '/podcast-gemeinderat-zuerich',
     serverName = 'feeds.gassert.ch',
-    maxEntries = 10;
+    maxEntries = 10,
+    cacheTTL = 60; //seconds
 
-var app = express();
+var app = express(),
+    cache = {xml: '', updated: 0};
 
 var feed = new RSS({
     title: 'Audioprotokoll Gemeinderat Stadt Zürich',
@@ -79,6 +80,10 @@ function pubDate(date) {
 function getFeedXML(callback) {
     var entriesToShow = maxEntries;
 
+    if (cache.xml && cache.updated && ((Date.now() - cache.updated) < cacheTTL * 1000)) {
+        return callback(cache.xml);
+    }
+
     http.get(source, (res) => {
       const { statusCode } = res;
       const contentType = res.headers['content-type'];
@@ -106,7 +111,9 @@ function getFeedXML(callback) {
             for (let entry of vm.run('tocTab')) {
 
                 if (entriesToShow === 0) {
-                    callback(feed.xml());
+                    cache.xml = feed.xml();
+                    cache.updated = Date.now();
+                    callback(cache.xml);
                     break;
                 }
 
@@ -149,6 +156,7 @@ function getFeedXML(callback) {
 app.use(basePath, express.static(__dirname + '/static'));
 
 app.get(basePath + '/feed.xml', function (req, res) {
+
   getFeedXML(function(xml, err){
         if (err) {
             console.error(err.stack);
