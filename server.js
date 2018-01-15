@@ -1,5 +1,6 @@
 const http = require('http'),
     crypto = require('crypto'),
+    _ = require('underscore'),
     express = require('express'),
     RSS = require('rss'),
     {VM} = require('vm2');
@@ -76,9 +77,27 @@ function pubDate(date) {
   return parts.join(' ');
 }
 
+function getMP3Size(meetingNameEncoded, callback) {
+
+    req = http.request({
+        method: 'HEAD',
+        host: 'audio.gemeinderat-zuerich.ch',
+        port: 80,
+        path: '/audio/' + meetingNameEncoded + '/meeting.mp3'
+        },
+        function(res) {
+            if (res.headers['content-length']) {
+                return callback(res.headers['content-length']);
+            }
+            callback(0);
+        });
+
+    req.end();
+}
 
 function getFeedXML(callback) {
-    var entriesToShow = maxEntries;
+    var entriesToShow = maxEntries,
+        tocJS;
 
     if (cache.xml && cache.updated && ((Date.now() - cache.updated) < cacheTTL * 1000)) {
         return callback(cache.xml);
@@ -107,42 +126,47 @@ function getFeedXML(callback) {
       res.on('end', () => {
         try {
             vm.run(rawData);
-
-            for (let entry of vm.run('tocTab')) {
-
-                if (entriesToShow === 0) {
-                    cache.xml = feed.xml();
-                    cache.updated = Date.now();
-                    callback(cache.xml);
-                    break;
-                }
-
+            tocJS = _.filter(vm.run('tocTab'), function(item) {
                 // Integer entries are the meetings, other ones are agenda items of those meetings
-                if (Number.isInteger(Number(entry[0]))) {
+                return Number.isInteger(Number(item[0]));
+            });
 
+            tocJS = _.first(tocJS, maxEntries);
+
+            _.each(tocJS, function(entry) {
                     var dateComponents = entry[1].match(/(\d+)\.(\d+)\.(\d{4})/),
                         encodedTitle = encodeURIComponent(entry[1]);
 
-                    feed.item({
-                        title: entry[1],
-                        description: '',
-                        url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
-                        guid: crypto.createHash('md5').update(source + '#' + encodedTitle).digest('hex'),
-                        date: dateComponents[3] +
-                            '/' + dateComponents[2] +
-                            '/' + dateComponents[1] +
-                            ' 23:00',
-                        enclosure: {
-                            url: 'http://audio.gemeinderat-zuerich.ch/audio/' +
-                                    encodedTitle +
-                                    '/meeting.mp3',
-                            type:' audio/mpeg3'
-                        }
-                    });
+                      getMP3Size(encodedTitle, function(mp3Size) {
 
-                    entriesToShow--;
-                }
-            }
+                            feed.item({
+                                index: entry[0],
+                                title: entry[1],
+                                description: '',
+                                url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
+                                guid: crypto.createHash('md5').update(source + '#' + encodedTitle).digest('hex'),
+                                date: dateComponents[3] +
+                                    '/' + dateComponents[2] +
+                                    '/' + dateComponents[1] +
+                                    ' 23:00',
+                                enclosure: {
+                                    url: 'http://audio.gemeinderat-zuerich.ch/audio/' +
+                                            encodedTitle +
+                                            '/meeting.mp3',
+                                    type:' audio/mpeg3',
+                                    size: mp3Size
+                                }
+                            });
+
+                            if (feed.items.length === maxEntries) {
+                                // Hack: reorder, as the async fetching of sizes might have changed the ordering
+                                _.sortBy(feed.items, 'index');
+                                cache.xml = feed.xml();
+                                cache.updated = Date.now();
+                                callback(cache.xml);
+                            }
+                        });
+                });
 
         } catch (e) {
           callback(null, e);
