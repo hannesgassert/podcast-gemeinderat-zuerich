@@ -1,16 +1,19 @@
-const {VM} = require('vm2'),
-    http = require('http'),
-    express = require('express'),
+const http = require('http'),
     crypto = require('crypto'),
-    RSS = require('rss');
+    express = require('express'),
+    RSS = require('rss'),
+    {VM} = require('vm2');
 
 const vm = new VM({
     timeout: 1000,
     sandbox: {tocLink: ''}
 });
 
-const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js';
-const maxEntries = 10;
+
+const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
+    basePath = '/podcast-gemeinderat-zuerich',
+    serverName = 'feeds.gassert.ch',
+    maxEntries = 10;
 
 var app = express();
 
@@ -18,9 +21,9 @@ var feed = new RSS({
     title: 'Audioprotokoll Gemeinderat Stadt Zürich',
     author: 'Gemeinderat der Stadt Zürich',
     description: 'Der Gemeinderat ist das Parlament der Stadt Zürich. Der Rat setzt sich aus 125 gewählten Mitgliedern zusammen. In der Regel tagt er jeden Mittwochabend von 17 Uhr bis ca. 20 Uhr im Rathaus, am Limmatquai 55. Hier werden die offiziellen Audioprotokolle als inoffizieller Podcast ausgeliefert.',
-    feed_url: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.xml',
+    feed_url: 'http://' + serverName + basePath + '/feed.xml',
+    image_url: 'http://' + serverName + basePath + '/cover.jpg',
     site_url: 'http://audio.gemeinderat-zuerich.ch',
-    image_url: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.jpg',
     webMaster: 'Hannes Gassert',
     language: 'de',
     categories: ['Government & Organizations'],
@@ -38,7 +41,7 @@ var feed = new RSS({
       ]},
       {'itunes:image': {
         _attr: {
-          href: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.jpg'
+          href: 'http://' + serverName + basePath + '/cover.jpg'
         }
       }},
       {'itunes:category': [
@@ -142,12 +145,12 @@ function getFeedXML(callback) {
     });
 }
 
-app.use(express.static(__dirname + '/static'));
+app.use(basePath, express.static(__dirname + '/static'));
 
-app.get('/podcast-gemeinderat-zuerich.xml', function (req, res) {
+app.get(basePath + '/feed.xml', function (req, res) {
   getFeedXML(function(xml, err){
         if (err) {
-            console.error(err.stack)
+            console.error(err.stack);
             res.status(500).end(err.message);
             return;
         }
