@@ -117,17 +117,14 @@ function getMP3Size(meetingNameEncoded, callback) {
 }
 
 function getFeedXML(callback) {
-    var entriesToShow = maxEntries,
-        tocJS;
+    var tocJS;
 
     if (cache.xml && cache.updated && ((Date.now() - cache.updated) < cacheTTL * 1000)) {
         return callback(cache.xml);
     }
 
     http.get(source, (res) => {
-        const {
-            statusCode
-        } = res;
+        const {statusCode} = res;
         const contentType = res.headers['content-type'];
 
         let error;
@@ -178,7 +175,7 @@ function getFeedXML(callback) {
                                 url: 'http://audio.gemeinderat-zuerich.ch/audio/' +
                                     encodedTitle +
                                     '/meeting.mp3',
-                                type: ' audio/mpeg3',
+                                type: 'audio/mpeg3',
                                 size: mp3Size
                             }
                         });
