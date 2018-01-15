@@ -1,6 +1,7 @@
 const {VM} = require('vm2'),
     http = require('http'),
     express = require('express'),
+    crypto = require('crypto'),
     RSS = require('rss');
 
 const vm = new VM({
@@ -115,7 +116,7 @@ function getFeedXML(callback) {
                         title: entry[1],
                         description: '',
                         url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
-                        guid: source + '#' + encodedTitle,
+                        guid: crypto.createHash('md5').update(source + '#' + encodedTitle).digest('hex'),
                         date: dateComponents[3] +
                             '/' + dateComponents[2] +
                             '/' + dateComponents[1] +
