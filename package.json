@@ -20,8 +20,10 @@
   "homepage": "https://github.com/hannesgassert/podcast-gemeinderat-zuerich#readme",
   "dependencies": {
     "express": "^4.16.2",
+    "iconv-lite": "^0.4.19",
     "rss": "^1.2.2",
     "underscore": "^1.8.3",
+    "utf8": "^3.0.0",
     "vm2": "^3.5.2"
   }
 }

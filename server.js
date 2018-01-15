@@ -1,11 +1,10 @@
 const http = require('http'),
     crypto = require('crypto'),
     _ = require('underscore'),
+    iconv = require('iconv-lite'),
     express = require('express'),
     RSS = require('rss'),
-    {
-        VM
-    } = require('vm2');
+    {VM} = require('vm2');
 
 const vm = new VM({
     timeout: 1000,
@@ -100,7 +99,7 @@ function pubDate(date) {
 
 function getMP3Size(meetingNameEncoded, callback) {
 
-    req = http.request({
+    var req = http.request({
             method: 'HEAD',
             host: 'audio.gemeinderat-zuerich.ch',
             port: 80,
@@ -114,6 +113,20 @@ function getMP3Size(meetingNameEncoded, callback) {
         });
 
     req.end();
+}
+
+function getItemToc(index, tocJS) {
+    var regExp = new RegExp('^' + index + '\\.\\d$'),
+        tmp;
+
+    tmp = _.filter(tocJS, function(item) {
+        return regExp.test(item[0]);
+    });
+    tmp = _.map(tmp, function(item) {
+        return item[1];
+    });
+
+    return tmp.join('<br/>');
 }
 
 function getFeedXML(callback) {
@@ -140,31 +153,30 @@ function getFeedXML(callback) {
             return;
         }
 
-        res.setEncoding('utf8');
-        let rawData = '';
+        let chunks = [];
         res.on('data', (chunk) => {
-            rawData += chunk;
+            chunks.push(chunk);
         });
         res.on('end', () => {
             try {
-                vm.run(rawData);
-                tocJS = _.filter(vm.run('tocTab'), function (item) {
+                vm.run(iconv.decode(Buffer.concat(chunks), 'iso-8859-1'));
+                let toc = vm.run('tocTab');
+                let tocMain = _.filter(toc, function (entry) {
                     // Integer entries are the meetings, other ones are agenda items of those meetings
-                    return Number.isInteger(Number(item[0]));
+                    return Number.isInteger(Number(entry[0]));
                 });
 
-                tocJS = _.first(tocJS, maxEntries);
+                tocMain = _.first(tocMain, maxEntries);
 
-                _.each(tocJS, function (entry, i) {
+                _.each(tocMain, function (entry) {
                     var dateComponents = entry[1].match(/(\d+)\.(\d+)\.(\d{4})/),
                         encodedTitle = encodeURIComponent(entry[1]);
 
                     getMP3Size(encodedTitle, function (mp3Size) {
 
                         feed.item({
-                            index: i,
                             title: entry[1],
-                            description: '',
+                            description: getItemToc(entry[0], toc),
                             url: 'http://www.gemeinderat-zuerich.ch/sitzungen/protokolle/',
                             guid: crypto.createHash('md5').update(source + '#' + encodedTitle).digest('hex'),
                             date: dateComponents[3] +
@@ -179,7 +191,6 @@ function getFeedXML(callback) {
                                 size: mp3Size
                             }
                         });
-
 
                         if (feed.items.length === maxEntries) {
                             // Hack: reorder, as the async fetching of sizes might have changed the ordering
