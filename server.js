@@ -15,7 +15,8 @@ var app = express();
 
 var feed = new RSS({
     title: 'Audioprotokoll Gemeinderat Stadt Zürich',
-    description: '',
+    author: 'Gemeinderat der Stadt Zürich',
+    description: 'Der Gemeinderat ist das Parlament der Stadt Zürich. Der Rat setzt sich aus 125 gewählten Mitgliedern zusammen. In der Regel tagt er jeden Mittwochabend von 17 Uhr bis ca. 20 Uhr im Rathaus, am Limmatquai 55. Hier werden die offiziellen Audioprotokolle als inoffizieller Podcast ausgeliefert.',
     feed_url: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.xml',
     site_url: 'http://audio.gemeinderat-zuerich.ch',
     image_url: 'https://apps.gassert.ch/podcast-gemeinderat-zuerich.jpg',
@@ -28,8 +29,8 @@ var feed = new RSS({
       'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'
     },
     custom_elements: [
-      {'itunes:subtitle': 'Weekly audio recording of the Zurich City Parliament'},
-      {'itunes:summary': ''},
+      {'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'},
+      {'itunes:author': 'Gemeinderat Stadt Zürich'},
       {'itunes:owner': [
         {'itunes:name': 'Hannes Gassert'},
         {'itunes:email': 'hannes@gassert.ch'}
