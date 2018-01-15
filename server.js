@@ -35,6 +35,7 @@ var feed = new RSS({
     custom_elements: [
       {'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'},
       {'itunes:author': 'Gemeinderat Stadt Zürich'},
+      {'itunes:explicit': 'No'},
       {'itunes:owner': [
         {'itunes:name': 'Hannes Gassert'},
         {'itunes:email': 'hannes@gassert.ch'}
