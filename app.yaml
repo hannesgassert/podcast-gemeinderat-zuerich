@@ -1,0 +1,4 @@
+runtime: nodejs
+env: flex
+service: podcast-gemeinderat-zuerich
+skip_files: - ^(.*/)?\.sketch$
