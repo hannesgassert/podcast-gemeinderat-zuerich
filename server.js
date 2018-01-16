@@ -17,7 +17,7 @@ const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
     basePath = '/podcast-gemeinderat-zuerich',
     serverName = 'feeds.gassert.ch',
     maxEntries = 10,
-    cacheTTL = 1500; //seconds
+    cacheTTL = 3000; //seconds
 
 var app = express(),
     cache = {
@@ -40,38 +40,14 @@ var feed = new RSS({
     custom_namespaces: {
         'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'
     },
-    custom_elements: [{
-            'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'
-        },
-        {
-            'itunes:author': 'Gemeinderat Stadt Zürich'
-        },
-        {
-            'itunes:explicit': 'No'
-        },
-        {
-            'itunes:owner': [{
-                    'itunes:name': 'Hannes Gassert'
-                },
-                {
-                    'itunes:email': 'hannes@gassert.ch'
-                }
-            ]
-        },
-        {
-            'itunes:image': {
-                _attr: {
-                    href: 'http://' + serverName + basePath + '/cover.jpg'
-                }
-            }
-        },
-        {
-            'itunes:category': [{
-                _attr: {
-                    text: 'Government & Organizations'
-                }
-            }]
-        }
+    custom_elements: [
+        {'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'},
+        {'itunes:keywords': 'Politik, Lokalpolitik, Zürich, Schweiz, Protokolle, Reden, Transparenz'},
+        {'itunes:author': 'Gemeinderat Stadt Zürich'},
+        {'itunes:explicit': 'No'},
+        {'itunes:owner': [{'itunes:name': 'Hannes Gassert'}, {'itunes:email': 'hannes@gassert.ch'}]},
+        {'itunes:image': {_attr: {href: 'http://' + serverName + basePath + '/cover.jpg'}}},
+        {'itunes:category': [{_attr: {text: 'Government & Organizations'}}]}
     ]
 });
 
@@ -97,6 +73,7 @@ function pubDate(date) {
     return parts.join(' ');
 }
 
+// Get file size of remote file through a HTTP HEAD request
 function getMP3Size(meetingNameEncoded, callback) {
 
     var req = http.request({
@@ -115,20 +92,25 @@ function getMP3Size(meetingNameEncoded, callback) {
     req.end();
 }
 
+// Generate a table of content for a specific feed item, i.e council meeting
 function getItemToc(index, tocJS) {
     var regExp = new RegExp('^' + index + '\\.\\d$'),
         tmp;
 
+    // Extract first-level agenda items, numbered 1.1, 1.2, 2.1, etc.
     tmp = _.filter(tocJS, function(item) {
         return regExp.test(item[0]);
     });
+
+    // Extract agenda item titles
     tmp = _.map(tmp, function(item) {
         return item[1];
     });
 
-    return tmp.join('<br/>');
+    return tmp.join('<br/><br/>');
 }
 
+// Generate and cache the feed XML, by fetching, evaluating and dissecting a JS file from the council's website
 function getFeedXML(callback) {
     var tocJS;
 
@@ -142,8 +124,7 @@ function getFeedXML(callback) {
 
         let error;
         if (statusCode !== 200) {
-            error = new Error('Request Failed.\n' +
-                `Status Code: ${statusCode}`);
+            error = new Error('Request Failed.\n' + `Status Code: ${statusCode}`);
         } else if (!/^application\/javascript/.test(contentType)) {
             error = new Error(`Expected application/javascript from source but received ${contentType}`);
         }
@@ -213,6 +194,7 @@ function getFeedXML(callback) {
     });
 }
 
+
 app.use(basePath, express.static(__dirname + '/static'));
 
 app.get(basePath + '/feed.xml', function (req, res) {
@@ -224,6 +206,7 @@ app.get(basePath + '/feed.xml', function (req, res) {
             return;
         }
         res.setHeader('Content-Type', 'application/rss+xml');
+        res.setHeader('Cache-Control', 'public, max-age=' + cacheTTL);
         res.end(xml);
     });
 });
