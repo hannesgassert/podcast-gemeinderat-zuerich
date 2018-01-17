@@ -140,8 +140,11 @@ function getFeedXML(callback) {
         });
         res.on('end', () => {
             try {
+
+                // Execute their JS in a separate VM, evaluate and extract their variable tocTab
                 vm.run(iconv.decode(Buffer.concat(chunks), 'iso-8859-1'));
                 let toc = vm.run('tocTab');
+
                 let tocMain = _.filter(toc, function (entry) {
                     // Integer entries are the meetings, other ones are agenda items of those meetings
                     return Number.isInteger(Number(entry[0]));
@@ -209,6 +212,10 @@ app.get(basePath + '/feed.xml', function (req, res) {
         res.setHeader('Cache-Control', 'public, max-age=' + cacheTTL);
         res.end(xml);
     });
+});
+
+app.get('/', function(req, res) {
+    res.redirect('https://gassert.ch/');
 });
 
 app.listen(8080);
