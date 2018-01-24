@@ -6,50 +6,39 @@ const http = require('http'),
     RSS = require('rss'),
     {VM} = require('vm2');
 
-const vm = new VM({
-    timeout: 1000,
-    sandbox: {
-        tocLink: ''
-    }
-});
-
 const source = 'http://audio.gemeinderat-zuerich.ch/script/tocTab.js',
     basePath = '/podcast-gemeinderat-zuerich',
     serverName = 'feeds.gassert.ch',
     maxEntries = 10,
-    cacheTTL = 3000; //seconds
-
-var app = express(),
-    cache = {
-        xml: '',
-        updated: 0
+    cacheTTL = 3000, //seconds,
+    feedOptions = {
+        title: 'Audioprotokoll Gemeinderat Stadt Zürich',
+        author: 'Gemeinderat der Stadt Zürich',
+        description: 'Der Gemeinderat ist das Parlament der Stadt Zürich. Der Rat setzt sich aus 125 gewählten Mitgliedern zusammen. In der Regel tagt er jeden Mittwochabend von 17 Uhr bis ca. 20 Uhr im Rathaus, am Limmatquai 55. Hier werden die offiziellen Audioprotokolle als inoffizieller Podcast ausgeliefert.',
+        feed_url: 'http://' + serverName + basePath + '/feed.xml',
+        image_url: 'http://' + serverName + basePath + '/cover.jpg',
+        site_url: 'http://audio.gemeinderat-zuerich.ch',
+        webMaster: 'Hannes Gassert',
+        language: 'de',
+        categories: ['Government & Organizations'],
+        pubDate: pubDate(),
+        ttl: '180',
+        custom_namespaces: {
+            'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'
+        },
+        custom_elements: [
+            {'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'},
+            {'itunes:keywords': 'Politik, Lokalpolitik, Zürich, Schweiz, Protokolle, Reden, Transparenz'},
+            {'itunes:author': 'Gemeinderat Stadt Zürich'},
+            {'itunes:explicit': 'No'},
+            {'itunes:owner': [{'itunes:name': 'Hannes Gassert'}, {'itunes:email': 'hannes@gassert.ch'}]},
+            {'itunes:image': {_attr: {href: 'http://' + serverName + basePath + '/cover.jpg'}}},
+            {'itunes:category': [{_attr: {text: 'Government & Organizations'}}]}
+        ]
     };
 
-var feed = new RSS({
-    title: 'Audioprotokoll Gemeinderat Stadt Zürich',
-    author: 'Gemeinderat der Stadt Zürich',
-    description: 'Der Gemeinderat ist das Parlament der Stadt Zürich. Der Rat setzt sich aus 125 gewählten Mitgliedern zusammen. In der Regel tagt er jeden Mittwochabend von 17 Uhr bis ca. 20 Uhr im Rathaus, am Limmatquai 55. Hier werden die offiziellen Audioprotokolle als inoffizieller Podcast ausgeliefert.',
-    feed_url: 'http://' + serverName + basePath + '/feed.xml',
-    image_url: 'http://' + serverName + basePath + '/cover.jpg',
-    site_url: 'http://audio.gemeinderat-zuerich.ch',
-    webMaster: 'Hannes Gassert',
-    language: 'de',
-    categories: ['Government & Organizations'],
-    pubDate: pubDate(),
-    ttl: '180',
-    custom_namespaces: {
-        'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'
-    },
-    custom_elements: [
-        {'itunes:subtitle': 'Jede Woche: das Audioprotokoll des #grzh.'},
-        {'itunes:keywords': 'Politik, Lokalpolitik, Zürich, Schweiz, Protokolle, Reden, Transparenz'},
-        {'itunes:author': 'Gemeinderat Stadt Zürich'},
-        {'itunes:explicit': 'No'},
-        {'itunes:owner': [{'itunes:name': 'Hannes Gassert'}, {'itunes:email': 'hannes@gassert.ch'}]},
-        {'itunes:image': {_attr: {href: 'http://' + serverName + basePath + '/cover.jpg'}}},
-        {'itunes:category': [{_attr: {text: 'Government & Organizations'}}]}
-    ]
-});
+var app = express(),
+    cache = {xml: '', updated: 0};
 
 // Generate RSS Pubdate in Apple's format
 function pubDate(date) {
@@ -80,7 +69,8 @@ function getMP3Size(meetingNameEncoded, callback) {
             method: 'HEAD',
             host: 'audio.gemeinderat-zuerich.ch',
             port: 80,
-            path: '/audio/' + meetingNameEncoded + '/meeting.mp3'
+            path: '/audio/' + meetingNameEncoded + '/meeting.mp3',
+            headers: {'User-Agent': 'Mozilla/5.0'}
         },
         function (res) {
             if (res.headers['content-length']) {
@@ -112,17 +102,19 @@ function getItemToc(index, tocJS) {
 
 // Generate and cache the feed XML, by fetching, evaluating and dissecting a JS file from the council's website
 function getFeedXML(callback) {
-    var tocJS;
 
     if (cache.xml && cache.updated && ((Date.now() - cache.updated) < cacheTTL * 1000)) {
         return callback(cache.xml);
     }
 
+    var feed = new RSS(feedOptions);
+
     http.get(source, (res) => {
-        const {statusCode} = res;
-        const contentType = res.headers['content-type'];
+        const {statusCode} = res,
+            contentType = res.headers['content-type'];
 
         let error;
+
         if (statusCode !== 200) {
             error = new Error('Request Failed.\n' + `Status Code: ${statusCode}`);
         } else if (!/^application\/javascript/.test(contentType)) {
@@ -138,19 +130,26 @@ function getFeedXML(callback) {
         res.on('data', (chunk) => {
             chunks.push(chunk);
         });
+
         res.on('end', () => {
+
             try {
-
                 // Execute their JS in a separate VM, evaluate and extract their variable tocTab
-                vm.run(iconv.decode(Buffer.concat(chunks), 'iso-8859-1'));
-                let toc = vm.run('tocTab');
+                var vm = new VM({timeout: 1000, sandbox: {tocLink: ''}}),
+                    toc,
+                    tocMain;
 
-                let tocMain = _.filter(toc, function (entry) {
+                vm.run(iconv.decode(Buffer.concat(chunks), 'iso-8859-1'));
+                toc = vm.run('tocTab');
+                tocMain = _.filter(toc, function (entry) {
                     // Integer entries are the meetings, other ones are agenda items of those meetings
                     return Number.isInteger(Number(entry[0]));
                 });
 
                 tocMain = _.first(tocMain, maxEntries);
+                if (tocMain.length < maxEntries) {
+                    maxEntries = tocMain.length;
+                }
 
                 _.each(tocMain, function (entry) {
                     var dateComponents = entry[1].match(/(\d+)\.(\d+)\.(\d{4})/),
@@ -180,7 +179,6 @@ function getFeedXML(callback) {
                             // Hack: reorder, as the async fetching of sizes might have changed the ordering
                             // Luckily the title contains the meeting number and is thus sortable as follows:
                             feed.items = _.sortBy(feed.items, 'title').reverse();
-
                             cache.xml = feed.xml();
                             cache.updated = Date.now();
                             callback(cache.xml);
